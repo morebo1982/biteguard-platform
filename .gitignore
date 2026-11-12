@@ -1,0 +1,54 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+frontend/dist/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.vscode/
+.idea/
+.DS_Store
+*.sqlite
+*.db
+*.log
+
+# Nested build artifacts and dependencies
+**/node_modules/
+**/dist/
+**/.pytest_cache/
+**/.ruff_cache/
+**/__pycache__/
+**/*.egg-info/
+
+# Historical copies and backup files
+**/app.backup/
+**/frontend_1/
+**/*.backup
+backup/
+
+# Generated reports and API snapshots
+**/audit-report.json
+
+# Legacy root-level scaffold (active application is under backend/)
+/app/
+/frontend/
+/migrations/
+/tests/
+/pyproject.toml
+/alembic.ini
+/STEP48_REPOSITORIES.md
+/STEP49_APPLICATION_SERVICES.md
+/creat pdf.py
+
+# Temporary backend artifacts
+/backend/file.zip
+/backend/patch.py
+/backend/openapi.json
