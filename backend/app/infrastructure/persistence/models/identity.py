@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, Table, Uuid, text
+from sqlalchemy import Boolean, Column, ForeignKey, Index, String, Table, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.persistence.base import Base, TimestampMixin
@@ -46,9 +45,7 @@ class User(TimestampMixin, Base):
 
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     display_name: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -70,9 +67,7 @@ class Role(TimestampMixin, Base):
 
     __tablename__ = "roles"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -85,9 +80,7 @@ class Permission(TimestampMixin, Base):
 
     __tablename__ = "permissions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     module: Mapped[str] = mapped_column(String(80), nullable=False)

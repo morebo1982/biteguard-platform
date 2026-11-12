@@ -48,12 +48,25 @@ def iam_client():
             session.close()
 
     permissions = [
-        "users.create", "users.read", "users.update", "users.activate",
-        "users.deactivate", "users.roles.assign", "users.scopes.manage",
-        "roles.create", "roles.read", "roles.update", "roles.activate",
-        "roles.deactivate", "roles.delete", "roles.permissions.assign",
-        "permissions.create", "permissions.read", "permissions.update",
-        "permissions.delete", "audit.read",
+        "users.create",
+        "users.read",
+        "users.update",
+        "users.activate",
+        "users.deactivate",
+        "users.roles.assign",
+        "users.scopes.manage",
+        "roles.create",
+        "roles.read",
+        "roles.update",
+        "roles.activate",
+        "roles.deactivate",
+        "roles.delete",
+        "roles.permissions.assign",
+        "permissions.create",
+        "permissions.read",
+        "permissions.update",
+        "permissions.delete",
+        "audit.read",
     ]
     with factory() as db:
         admin = User(username="integration-admin", display_name="Integration Admin", is_active=True)
@@ -62,16 +75,15 @@ def iam_client():
         db.flush()
         set_user_password(db, admin, "Integration-Admin-Password-2026!")
         permission_rows = [
-            Permission(code=code, name=code, module=code.split(".", 1)[0])
-            for code in permissions
+            Permission(code=code, name=code, module=code.split(".", 1)[0]) for code in permissions
         ]
         db.add_all(permission_rows)
         db.flush()
         db.execute(user_roles.insert().values(user_id=admin.id, role_id=role.id))
         for permission in permission_rows:
-            db.execute(role_permissions.insert().values(
-                role_id=role.id, permission_id=permission.id
-            ))
+            db.execute(
+                role_permissions.insert().values(role_id=role.id, permission_id=permission.id)
+            )
         db.commit()
 
     app.dependency_overrides[get_db] = override_get_db
@@ -84,6 +96,7 @@ def iam_client():
     )
     # Ensure the process-local login limiter does not leak between test runs.
     from app.api.v1 import authentication as auth_routes
+
     auth_routes._attempts.clear()
 
     with TestClient(app) as client:
@@ -99,10 +112,13 @@ def iam_client():
 
 
 def _login(client: TestClient) -> str:
-    response = client.post("/api/v1/auth/login", json={
-        "username": "integration-admin",
-        "password": "Integration-Admin-Password-2026!",
-    })
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "integration-admin",
+            "password": "Integration-Admin-Password-2026!",
+        },
+    )
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
 
@@ -118,15 +134,18 @@ def test_iam_end_to_end_login_permissions_data_scope_and_audit(iam_client):
 
     # Reuse the existing users.read permission instead of creating a duplicate.
     with factory() as db:
-        existing_permission = db.scalar(
-            select(Permission).where(Permission.code == "users.read")
-        )
+        existing_permission = db.scalar(select(Permission).where(Permission.code == "users.read"))
         assert existing_permission is not None
         role = db.scalar(select(Role).where(Role.code == "integration-admin"))
-        assert db.scalar(select(role_permissions.c.permission_id).where(
-            role_permissions.c.role_id == role.id,
-            role_permissions.c.permission_id == existing_permission.id,
-        )) is not None
+        assert (
+            db.scalar(
+                select(role_permissions.c.permission_id).where(
+                    role_permissions.c.role_id == role.id,
+                    role_permissions.c.permission_id == existing_permission.id,
+                )
+            )
+            is not None
+        )
 
     created = client.post(
         "/api/v1/users",
@@ -154,17 +173,21 @@ def test_iam_end_to_end_login_permissions_data_scope_and_audit(iam_client):
     assert revoked.json() == {"changed": True}
 
     with factory() as db:
-        events = db.scalars(select(AuditLog).where(
-            (AuditLog.entity_id == target_id)
-            | (AuditLog.entity_id == "integration-target")
-        )).all()
+        events = db.scalars(
+            select(AuditLog).where(
+                (AuditLog.entity_id == target_id) | (AuditLog.entity_id == "integration-target")
+            )
+        ).all()
         actions = [event.action for event in events]
         assert "user.created" in actions
         assert actions.count("user.data_scope_granted") == 1
         assert "user.data_scope_revoked" in actions
-        assert db.scalars(select(UserDataScope).where(
-            UserDataScope.user_id == uuid.UUID(target_id)
-        )).all() == []
+        assert (
+            db.scalars(
+                select(UserDataScope).where(UserDataScope.user_id == uuid.UUID(target_id))
+            ).all()
+            == []
+        )
 
     logout = client.post("/api/v1/auth/logout", headers=headers)
     assert logout.status_code == 204
@@ -180,10 +203,12 @@ def test_iam_permission_denial_is_audited_and_does_not_create_user(iam_client):
     with factory() as db:
         role = db.scalar(select(Role).where(Role.code == "integration-admin"))
         permission = db.scalar(select(Permission).where(Permission.code == "users.create"))
-        db.execute(role_permissions.delete().where(
-            role_permissions.c.role_id == role.id,
-            role_permissions.c.permission_id == permission.id,
-        ))
+        db.execute(
+            role_permissions.delete().where(
+                role_permissions.c.role_id == role.id,
+                role_permissions.c.permission_id == permission.id,
+            )
+        )
         db.commit()
 
     denied = client.post(
@@ -195,10 +220,12 @@ def test_iam_permission_denial_is_audited_and_does_not_create_user(iam_client):
 
     with factory() as db:
         assert db.scalar(select(User).where(User.username == "should-not-exist")) is None
-        denial = db.scalar(select(AuditLog).where(
-            AuditLog.action == "authorization.denied",
-            AuditLog.entity_id == "users.create",
-        ))
+        denial = db.scalar(
+            select(AuditLog).where(
+                AuditLog.action == "authorization.denied",
+                AuditLog.entity_id == "users.create",
+            )
+        )
         assert denial is not None
         assert denial.result == "denied"
 

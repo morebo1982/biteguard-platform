@@ -1,4 +1,3 @@
-
 from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine, text
@@ -17,10 +16,7 @@ def build_database_url(settings: Settings) -> str | None:
         f"SERVER=tcp:{settings.database_host},{settings.database_port}",
         f"DATABASE={settings.database_name}",
         "Encrypt=yes",
-        (
-            "TrustServerCertificate="
-            f"{'yes' if settings.database_trust_server_certificate else 'no'}"
-        ),
+        (f"TrustServerCertificate={'yes' if settings.database_trust_server_certificate else 'no'}"),
     ]
 
     if settings.database_windows_authentication:

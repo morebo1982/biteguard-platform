@@ -4,17 +4,21 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import delete, select
 from sqlalchemy.pool import StaticPool
 
-from app.api.dependencies.database import get_db
 from app.api.dependencies.authentication import get_current_user
-from types import SimpleNamespace
+from app.api.dependencies.database import get_db
 from app.infrastructure.persistence.base import Base
-from app.infrastructure.persistence.models.identity import Permission, Role, User, user_roles, role_permissions
 from app.infrastructure.persistence.models.audit_log import AuditLog
+from app.infrastructure.persistence.models.identity import (
+    Permission,
+    Role,
+    User,
+    role_permissions,
+    user_roles,
+)
 from app.main import app
 
 
@@ -44,18 +48,37 @@ def client():
         test_user = User(username="test-admin", display_name="Test Admin", is_active=True)
         test_role = Role(code="test-admin", name="Test Admin", is_active=True)
         codes = [
-            "users.create", "users.read", "users.update", "users.activate",
-            "users.deactivate", "users.roles.assign", "roles.create", "roles.read",
-            "roles.update", "roles.activate", "roles.deactivate", "roles.delete",
-            "roles.permissions.assign", "users.scopes.manage", "permissions.create", "permissions.read",
-            "permissions.update", "permissions.delete",
+            "users.create",
+            "users.read",
+            "users.update",
+            "users.activate",
+            "users.deactivate",
+            "users.roles.assign",
+            "roles.create",
+            "roles.read",
+            "roles.update",
+            "roles.activate",
+            "roles.deactivate",
+            "roles.delete",
+            "roles.permissions.assign",
+            "users.scopes.manage",
+            "permissions.create",
+            "permissions.read",
+            "permissions.update",
+            "permissions.delete",
         ]
-        permissions = [Permission(code=code, name=code, module=code.split('.')[0]) for code in codes]
+        permissions = [
+            Permission(code=code, name=code, module=code.split(".")[0]) for code in codes
+        ]
         setup_session.add_all([test_user, test_role, *permissions])
         setup_session.flush()
-        setup_session.execute(user_roles.insert().values(user_id=test_user.id, role_id=test_role.id))
+        setup_session.execute(
+            user_roles.insert().values(user_id=test_user.id, role_id=test_role.id)
+        )
         for permission in permissions:
-            setup_session.execute(role_permissions.insert().values(role_id=test_role.id, permission_id=permission.id))
+            setup_session.execute(
+                role_permissions.insert().values(role_id=test_role.id, permission_id=permission.id)
+            )
         setup_session.commit()
 
     app.dependency_overrides[get_db] = override_get_db
@@ -70,9 +93,7 @@ def client():
 
 
 def test_user_crud_and_role_assignment_api(client):
-    created = client.post(
-        "/api/v1/users", json={"username": "alice", "display_name": "Alice"}
-    )
+    created = client.post("/api/v1/users", json={"username": "alice", "display_name": "Alice"})
     assert created.status_code == 201
     user = created.json()
 
@@ -120,9 +141,7 @@ def test_role_permission_assignment_and_catalogue_api(client):
     assert filtered.status_code == 200
     assert filtered.json()["page"]["total"] == 1
 
-    updated = client.patch(
-        f"/api/v1/permissions/{permission['id']}", json={"name": "View quality"}
-    )
+    updated = client.patch(f"/api/v1/permissions/{permission['id']}", json={"name": "View quality"})
     assert updated.status_code == 200
     assert updated.json()["name"] == "View quality"
 
@@ -158,9 +177,7 @@ def test_permission_enforcement_denies_and_audits(client):
         )
         session.commit()
 
-    denied = client.post(
-        "/api/v1/users", json={"username": "blocked", "display_name": "Blocked"}
-    )
+    denied = client.post("/api/v1/users", json={"username": "blocked", "display_name": "Blocked"})
     assert denied.status_code == 403
     assert denied.json()["detail"]["code"] == "PERMISSION_DENIED"
 
@@ -176,7 +193,9 @@ def test_permission_enforcement_denies_and_audits(client):
 
 
 def test_user_data_scope_grants_api(client):
-    user_response = client.post("/api/v1/users", json={"username": "scoped", "display_name": "Scoped"})
+    user_response = client.post(
+        "/api/v1/users", json={"username": "scoped", "display_name": "Scoped"}
+    )
     assert user_response.status_code == 201
     user_id = user_response.json()["id"]
 
@@ -186,14 +205,18 @@ def test_user_data_scope_grants_api(client):
     )
     assert grant.status_code == 201
     assert grant.json()["scope_type"] == "company"
-    assert client.get(f"/api/v1/users/{user_id}/data-scopes").json()[0]["scope_value"] == "company-001"
+    assert (
+        client.get(f"/api/v1/users/{user_id}/data-scopes").json()[0]["scope_value"] == "company-001"
+    )
 
     revoked = client.delete(f"/api/v1/users/{user_id}/data-scopes/company/company-001")
     assert revoked.json() == {"changed": True}
 
 
 def test_user_data_scope_api_rejects_invalid_grant(client):
-    user_response = client.post("/api/v1/users", json={"username": "scoped2", "display_name": "Scoped"})
+    user_response = client.post(
+        "/api/v1/users", json={"username": "scoped2", "display_name": "Scoped"}
+    )
     user_id = user_response.json()["id"]
     invalid = client.post(
         f"/api/v1/users/{user_id}/data-scopes",

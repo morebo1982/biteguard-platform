@@ -13,7 +13,7 @@ from app.application.exceptions import (
 )
 from app.application.services import PermissionService, RoleService, UserService
 from app.infrastructure.persistence.base import Base
-from app.infrastructure.persistence.models.identity import Permission, Role
+from app.infrastructure.persistence.models.identity import Role
 
 
 @pytest.fixture
@@ -88,9 +88,7 @@ def test_role_and_permission_conflicts_and_missing_entities(session):
     roles = RoleService(session)
     permissions = PermissionService(session)
     role = roles.create_role(code="auditor", name="Auditor")
-    permission = permissions.create_permission(
-        code="audit.read", name="Read audit", module="audit"
-    )
+    permission = permissions.create_permission(code="audit.read", name="Read audit", module="audit")
     with pytest.raises(EntityConflictError):
         roles.create_role(code="auditor", name="Duplicate")
     with pytest.raises(EntityConflictError):

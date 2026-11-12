@@ -68,7 +68,8 @@ def _record_denial(request: Request, db: Session, user, permission_code: str) ->
         entity_id=permission_code,
         result="denied",
         source="api",
-        correlation_id=getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID"),
+        correlation_id=getattr(request.state, "correlation_id", None)
+        or request.headers.get("X-Correlation-ID"),
         ip_address=request.client.host if request.client else None,
         context_data={"path": request.url.path, "method": request.method},
     )

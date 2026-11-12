@@ -8,7 +8,6 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.application.data_scope import DataScopeContext, DataScopeGrant, apply_data_scope
 from app.infrastructure.persistence.base import Base
-from app.infrastructure.persistence.models.data_scope import UserDataScope
 from app.infrastructure.persistence.models.identity import User
 from app.infrastructure.persistence.repositories.data_scope import UserDataScopeRepository
 
@@ -58,10 +57,12 @@ def test_scope_repository_validates_global_and_owner_values(session):
 
 def test_query_scope_fails_closed_when_no_grants_or_no_matching_columns(session):
     user_id = uuid.uuid4()
-    session.add_all([
-        ScopedOrder(company_id="c1", department_id="d1", owner_id=user_id),
-        ScopedOrder(company_id="c2", department_id="d2", owner_id=uuid.uuid4()),
-    ])
+    session.add_all(
+        [
+            ScopedOrder(company_id="c1", department_id="d1", owner_id=user_id),
+            ScopedOrder(company_id="c2", department_id="d2", owner_id=uuid.uuid4()),
+        ]
+    )
     session.flush()
     empty = DataScopeContext(user_id, ())
     assert session.scalars(apply_data_scope(select(ScopedOrder), ScopedOrder, empty)).all() == []
@@ -81,20 +82,27 @@ def test_company_department_and_owner_scopes_are_or_combined(session):
     ]
     session.add_all(records)
     session.flush()
-    context = DataScopeContext(owner, (
-        DataScopeGrant("company", "c1"),
-        DataScopeGrant("department", "d2"),
-        DataScopeGrant("owner", "self"),
-    ))
+    context = DataScopeContext(
+        owner,
+        (
+            DataScopeGrant("company", "c1"),
+            DataScopeGrant("department", "d2"),
+            DataScopeGrant("owner", "self"),
+        ),
+    )
     visible = session.scalars(apply_data_scope(select(ScopedOrder), ScopedOrder, context)).all()
     assert {row.id for row in visible} == {records[0].id, records[1].id}
 
 
 def test_global_scope_allows_all_rows(session):
-    session.add_all([
-        ScopedOrder(company_id="c1", department_id="d1", owner_id=uuid.uuid4()),
-        ScopedOrder(company_id="c2", department_id="d2", owner_id=uuid.uuid4()),
-    ])
+    session.add_all(
+        [
+            ScopedOrder(company_id="c1", department_id="d1", owner_id=uuid.uuid4()),
+            ScopedOrder(company_id="c2", department_id="d2", owner_id=uuid.uuid4()),
+        ]
+    )
     session.flush()
     context = DataScopeContext(uuid.uuid4(), (DataScopeGrant("global", "*"),))
-    assert len(session.scalars(apply_data_scope(select(ScopedOrder), ScopedOrder, context)).all()) == 2
+    assert (
+        len(session.scalars(apply_data_scope(select(ScopedOrder), ScopedOrder, context)).all()) == 2
+    )

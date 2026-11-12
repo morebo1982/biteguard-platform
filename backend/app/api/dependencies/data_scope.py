@@ -13,9 +13,7 @@ from app.infrastructure.persistence.models.data_scope import UserDataScope
 def get_data_scope_context(
     user=Depends(get_current_user), db: Session = Depends(get_db)
 ) -> DataScopeContext:
-    rows = db.scalars(
-        select(UserDataScope).where(UserDataScope.user_id == user.id)
-    ).all()
+    rows = db.scalars(select(UserDataScope).where(UserDataScope.user_id == user.id)).all()
     return DataScopeContext(
         user_id=user.id,
         grants=tuple(DataScopeGrant(row.scope_type, row.scope_value) for row in rows),

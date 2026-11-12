@@ -7,13 +7,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.health import router as health_router
-from app.api.v1.identity import router as identity_router
+from app.api.v1.audit import router as audit_router
 from app.api.v1.authentication import router as authentication_router
 from app.api.v1.data_scopes import router as data_scope_router
-from app.api.v1.audit import router as audit_router
+from app.api.v1.health import router as health_router
+from app.api.v1.identity import router as identity_router
 from app.application.exceptions import (
-    EntityConflictError, EntityNotFoundError, InvalidOperationError,
+    EntityConflictError,
+    EntityNotFoundError,
+    InvalidOperationError,
 )
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
@@ -85,8 +87,7 @@ async def correlation_and_request_logging(request: Request, call_next):
         )
     elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
     logger.info(
-        "request_completed method=%s path=%s status_code=%s "
-        "correlation_id=%s duration_ms=%s",
+        "request_completed method=%s path=%s status_code=%s correlation_id=%s duration_ms=%s",
         request.method,
         request.url.path,
         response.status_code,
@@ -99,17 +100,23 @@ async def correlation_and_request_logging(request: Request, call_next):
 
 @app.exception_handler(EntityNotFoundError)
 async def not_found_handler(request: Request, exc: EntityNotFoundError):
-    return JSONResponse(status_code=404, content={"error": {"code": "NOT_FOUND", "message": str(exc)}})
+    return JSONResponse(
+        status_code=404, content={"error": {"code": "NOT_FOUND", "message": str(exc)}}
+    )
 
 
 @app.exception_handler(EntityConflictError)
 async def conflict_handler(request: Request, exc: EntityConflictError):
-    return JSONResponse(status_code=409, content={"error": {"code": "CONFLICT", "message": str(exc)}})
+    return JSONResponse(
+        status_code=409, content={"error": {"code": "CONFLICT", "message": str(exc)}}
+    )
 
 
 @app.exception_handler(InvalidOperationError)
 async def invalid_operation_handler(request: Request, exc: InvalidOperationError):
-    return JSONResponse(status_code=422, content={"error": {"code": "INVALID_OPERATION", "message": str(exc)}})
+    return JSONResponse(
+        status_code=422, content={"error": {"code": "INVALID_OPERATION", "message": str(exc)}}
+    )
 
 
 app.include_router(health_router, prefix=settings.api_v1_prefix)

@@ -1,12 +1,17 @@
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
 from app.api.v1.schemas.identity import (
-    PermissionCreate, PermissionRead, RoleCreate, RoleRead,
-    UserCreate, UserRead, UserUpdate,
+    PermissionCreate,
+    PermissionRead,
+    RoleCreate,
+    RoleRead,
+    UserCreate,
+    UserRead,
+    UserUpdate,
 )
 
 
@@ -17,12 +22,15 @@ def test_user_create_strips_strings_and_accepts_optional_email():
     assert payload.email == "a@example.com"
 
 
-@pytest.mark.parametrize("payload", [
-    {"username": "", "display_name": "Alice"},
-    {"username": "a" * 81, "display_name": "Alice"},
-    {"username": "alice", "display_name": "Alice", "unexpected": True},
-    {"username": "alice", "display_name": "Alice", "email": "not-an-email"},
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"username": "", "display_name": "Alice"},
+        {"username": "a" * 81, "display_name": "Alice"},
+        {"username": "alice", "display_name": "Alice", "unexpected": True},
+        {"username": "alice", "display_name": "Alice", "email": "not-an-email"},
+    ],
+)
 def test_user_create_rejects_invalid_input(payload):
     with pytest.raises(ValidationError):
         UserCreate.model_validate(payload)
@@ -42,7 +50,7 @@ def test_role_and_permission_create_validate_contracts():
 
 
 def test_read_schemas_load_orm_style_attributes():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     user_id = uuid.uuid4()
 
     class UserRecord:
@@ -60,9 +68,15 @@ def test_read_schemas_load_orm_style_attributes():
 
 
 def test_role_and_permission_read_schemas():
-    now = datetime.now(timezone.utc)
-    common = {"id": uuid.uuid4(), "code": "code", "name": "Name",
-              "description": None, "created_at": now, "updated_at": now}
+    now = datetime.now(UTC)
+    common = {
+        "id": uuid.uuid4(),
+        "code": "code",
+        "name": "Name",
+        "description": None,
+        "created_at": now,
+        "updated_at": now,
+    }
     role = RoleRead.model_validate({**common, "is_system": False, "is_active": True})
     permission = PermissionRead.model_validate({**common, "module": "identity"})
     assert role.is_active is True

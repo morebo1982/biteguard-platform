@@ -13,7 +13,13 @@ from app.api.v1.schemas.identity import (
 )
 
 __all__ = [
-    "PermissionCreate", "PermissionRead", "PermissionUpdate",
-    "RoleCreate", "RoleRead", "RoleUpdate",
-    "UserCreate", "UserRead", "UserUpdate",
+    "PermissionCreate",
+    "PermissionRead",
+    "PermissionUpdate",
+    "RoleCreate",
+    "RoleRead",
+    "RoleUpdate",
+    "UserCreate",
+    "UserRead",
+    "UserUpdate",
 ]

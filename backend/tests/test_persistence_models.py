@@ -23,7 +23,12 @@ def test_foundational_schema_can_be_created_in_sqlite_for_testing():
     Base.metadata.create_all(engine)
     table_names = set(inspect(engine).get_table_names())
     assert {
-        "users", "roles", "permissions", "user_roles", "role_permissions", "audit_logs"
+        "users",
+        "roles",
+        "permissions",
+        "user_roles",
+        "role_permissions",
+        "audit_logs",
     }.issubset(table_names)
     engine.dispose()
 
@@ -32,10 +37,12 @@ def test_user_username_must_be_unique():
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as session:
-        session.add_all([
-            User(username="operator", display_name="Operator"),
-            User(username="operator", display_name="Duplicate"),
-        ])
+        session.add_all(
+            [
+                User(username="operator", display_name="Operator"),
+                User(username="operator", display_name="Duplicate"),
+            ]
+        )
         try:
             session.commit()
         except IntegrityError:

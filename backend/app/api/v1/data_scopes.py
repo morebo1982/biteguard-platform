@@ -1,4 +1,4 @@
-﻿"""IAM endpoints for assigning and reviewing user data scopes."""
+"""IAM endpoints for assigning and reviewing user data scopes."""
 
 import uuid
 from typing import Annotated

@@ -59,7 +59,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_database_tls(self):
         if self.app_env == "production" and len(self.auth_jwt_secret_key) < 32:
-            raise ValueError("AUTH_JWT_SECRET_KEY must contain at least 32 characters in production.")
+            raise ValueError(
+                "AUTH_JWT_SECRET_KEY must contain at least 32 characters in production."
+            )
         if self.auth_jwt_algorithm != "HS256":
             raise ValueError("Only HS256 is currently supported for JWT signing.")
         if self.auth_access_token_minutes < 1 or self.auth_access_token_minutes > 60:

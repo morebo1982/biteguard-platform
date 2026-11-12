@@ -32,9 +32,7 @@ class UserService:
         self.users = UserRepository(session)
         self.roles = RoleRepository(session)
 
-    def create_user(
-        self, *, username: str, display_name: str, email: str | None = None
-    ) -> User:
+    def create_user(self, *, username: str, display_name: str, email: str | None = None) -> User:
         username = _required_text(username, "username")
         display_name = _required_text(display_name, "display_name")
         email = _optional_text(email)
@@ -133,9 +131,7 @@ class RoleService:
         self.roles = RoleRepository(session)
         self.permissions = PermissionRepository(session)
 
-    def create_role(
-        self, *, code: str, name: str, description: str | None = None
-    ) -> Role:
+    def create_role(self, *, code: str, name: str, description: str | None = None) -> Role:
         code = _required_text(code, "code")
         name = _required_text(name, "name")
         if self.roles.get_by_code(code) is not None:

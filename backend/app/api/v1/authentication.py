@@ -1,9 +1,9 @@
 """Login, current-user, and logout endpoints."""
 
-from collections import defaultdict
 import threading
 import time
 import uuid
+from collections import defaultdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -11,18 +11,25 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies.authentication import get_current_user, get_actor_role_code
+from app.api.dependencies.authentication import get_actor_role_code, get_current_user
 from app.api.dependencies.database import get_db
 from app.api.v1.schemas.authentication import CurrentUserResponse, LoginRequest, TokenResponse
 from app.application.authentication import (
-    AuthenticationError, authenticate, decode_access_token, revoke_access_token,
+    AuthenticationError,
+    authenticate,
+    decode_access_token,
+    revoke_access_token,
 )
 from app.core.config import Settings
-from app.infrastructure.persistence.models.identity import (
-    Permission, Role, User, role_permissions, user_roles,
-)
 from app.infrastructure.persistence.audit import configure_audit_session, record_explicit_audit
 from app.infrastructure.persistence.models.audit_log import AuditLog
+from app.infrastructure.persistence.models.identity import (
+    Permission,
+    Role,
+    User,
+    role_permissions,
+    user_roles,
+)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 _bearer = HTTPBearer(auto_error=False)
@@ -47,7 +54,8 @@ def login(payload: LoginRequest, request: Request, db: DBSession):
     settings: Settings = request.app.state.settings
     configure_audit_session(
         db,
-        correlation_id=getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID"),
+        correlation_id=getattr(request.state, "correlation_id", None)
+        or request.headers.get("X-Correlation-ID"),
         ip_address=request.client.host if request.client else None,
     )
     key = f"{request.client.host if request.client else 'unknown'}:{payload.username.casefold()}"
@@ -58,23 +66,29 @@ def login(payload: LoginRequest, request: Request, db: DBSession):
         with _attempts_lock:
             _attempts[key].append(time.monotonic())
         _write_auth_failure(request, db, payload.username)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Invalid username or password.") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password."
+        ) from exc
     with _attempts_lock:
         _attempts.pop(key, None)
     configure_audit_session(
         db,
         actor_user_id=user.id,
         actor_role_code=get_actor_role_code(db, user.id),
-        correlation_id=getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID"),
+        correlation_id=getattr(request.state, "correlation_id", None)
+        or request.headers.get("X-Correlation-ID"),
         ip_address=request.client.host if request.client else None,
     )
     record_explicit_audit(
-        db, action="auth.login", entity_type="user", entity_id=user.id,
+        db,
+        action="auth.login",
+        entity_type="user",
+        entity_id=user.id,
         context_data={"username": user.username},
     )
-    return TokenResponse(access_token=token, expires_at=expires, user_id=user.id,
-                         username=user.username)
+    return TokenResponse(
+        access_token=token, expires_at=expires, user_id=user.id, username=user.username
+    )
 
 
 @router.get("/me", response_model=CurrentUserResponse)
@@ -120,8 +134,11 @@ def me(
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(request: Request, db: DBSession,
-           credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]):
+def logout(
+    request: Request,
+    db: DBSession,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+):
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Bearer access token required.")
     settings: Settings = request.app.state.settings
@@ -132,12 +149,16 @@ def logout(request: Request, db: DBSession,
             db,
             actor_user_id=actor_id,
             actor_role_code=get_actor_role_code(db, actor_id),
-            correlation_id=getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID"),
+            correlation_id=getattr(request.state, "correlation_id", None)
+            or request.headers.get("X-Correlation-ID"),
             ip_address=request.client.host if request.client else None,
         )
         revoke_access_token(db, claims)
         record_explicit_audit(
-            db, action="auth.logout", entity_type="user", entity_id=actor_id,
+            db,
+            action="auth.logout",
+            entity_type="user",
+            entity_id=actor_id,
         )
     except (AuthenticationError, AttributeError) as exc:
         raise HTTPException(status_code=401, detail="Invalid access token.") from exc
@@ -151,14 +172,23 @@ def _write_auth_failure(request: Request, db: Session, username: str) -> None:
         return
     try:
         with factory() as audit_session:
-            audit_session.add(AuditLog(
-                action="auth.login", entity_type="user", entity_id=None,
-                result="failure", source="api",
-                correlation_id=getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID"),
-                ip_address=request.client.host if request.client else None,
-                context_data={"username": username[:80]},
-            ))
+            audit_session.add(
+                AuditLog(
+                    action="auth.login",
+                    entity_type="user",
+                    entity_id=None,
+                    result="failure",
+                    source="api",
+                    correlation_id=getattr(request.state, "correlation_id", None)
+                    or request.headers.get("X-Correlation-ID"),
+                    ip_address=request.client.host if request.client else None,
+                    context_data={"username": username[:80]},
+                )
+            )
             audit_session.commit()
     except Exception:
         import logging
-        logging.getLogger("biteguard.security.audit").exception("login_failure_audit_persist_failed")
+
+        logging.getLogger("biteguard.security.audit").exception(
+            "login_failure_audit_persist_failed"
+        )

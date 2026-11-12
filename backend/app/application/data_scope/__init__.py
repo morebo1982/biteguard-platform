@@ -47,7 +47,8 @@ def apply_data_scope(statement: Select, model: type[Any], context: DataScopeCont
                 predicates.append(column == _coerce_value(column, grant.scope_value))
         elif grant.scope_type == "owner" and grant.scope_value == "self":
             owner_columns = [
-                column for name in ("owner_id", "created_by_id")
+                column
+                for name in ("owner_id", "created_by_id")
                 if (column := getattr(model, name, None)) is not None
             ]
             predicates.extend(column == context.user_id for column in owner_columns)

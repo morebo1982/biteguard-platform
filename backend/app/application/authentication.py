@@ -35,8 +35,12 @@ def verify_password(password: str, encoded: str) -> bool:
         if algorithm != "scrypt":
             return False
         digest = hashlib.scrypt(
-            password.encode("utf-8"), salt=bytes.fromhex(salt_hex),
-            n=int(n), r=int(r), p=int(p), dklen=len(bytes.fromhex(digest_hex)),
+            password.encode("utf-8"),
+            salt=bytes.fromhex(salt_hex),
+            n=int(n),
+            r=int(r),
+            p=int(p),
+            dklen=len(bytes.fromhex(digest_hex)),
         )
         return hmac.compare_digest(digest.hex(), digest_hex)
     except (ValueError, TypeError):
@@ -47,8 +51,9 @@ def set_user_password(db: Session, user: User, password: str) -> None:
     encoded = hash_password(password)
     credential = db.get(UserCredential, user.id)
     if credential is None:
-        credential = UserCredential(user_id=user.id, password_hash=encoded,
-                                    password_changed_at=datetime.now(UTC))
+        credential = UserCredential(
+            user_id=user.id, password_hash=encoded, password_changed_at=datetime.now(UTC)
+        )
         db.add(credential)
     else:
         credential.password_hash = encoded
@@ -61,12 +66,20 @@ def issue_access_token(user: User, settings: Settings) -> tuple[str, datetime]:
         raise RuntimeError("AUTH_JWT_SECRET_KEY must be configured with at least 32 characters.")
     now = datetime.now(UTC)
     expires = now + timedelta(minutes=settings.auth_access_token_minutes)
-    claims = {"sub": str(user.id), "jti": str(uuid.uuid4()), "iat": now,
-              "nbf": now, "exp": expires, "type": "access"}
+    claims = {
+        "sub": str(user.id),
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "nbf": now,
+        "exp": expires,
+        "type": "access",
+    }
     return jwt.encode(claims, settings.auth_jwt_secret_key, algorithm="HS256"), expires
 
 
-def authenticate(db: Session, username: str, password: str, settings: Settings) -> tuple[User, str, datetime]:
+def authenticate(
+    db: Session, username: str, password: str, settings: Settings
+) -> tuple[User, str, datetime]:
     user = db.scalar(select(User).where(User.username == username))
     credential = db.get(UserCredential, user.id) if user else None
     # Always perform a scrypt verification for unknown users to reduce timing leakage.
@@ -82,8 +95,12 @@ def authenticate(db: Session, username: str, password: str, settings: Settings) 
 
 def decode_access_token(token: str, settings: Settings) -> dict:
     try:
-        claims = jwt.decode(token, settings.auth_jwt_secret_key, algorithms=["HS256"],
-                            options={"require": ["exp", "iat", "nbf", "sub", "jti"]})
+        claims = jwt.decode(
+            token,
+            settings.auth_jwt_secret_key,
+            algorithms=["HS256"],
+            options={"require": ["exp", "iat", "nbf", "sub", "jti"]},
+        )
         if claims.get("type") != "access":
             raise AuthenticationError("Invalid token.")
         return claims

@@ -1,4 +1,5 @@
 """Transactional audit integration tests."""
+
 import uuid
 
 from sqlalchemy import create_engine, select
@@ -20,8 +21,9 @@ def test_entity_create_update_and_delete_are_audited_transactionally():
     engine = _engine()
     with Session(engine) as db:
         actor_id = uuid.uuid4()
-        configure_audit_session(db, actor_user_id=actor_id,
-                                correlation_id="corr-123", ip_address="127.0.0.1")
+        configure_audit_session(
+            db, actor_user_id=actor_id, correlation_id="corr-123", ip_address="127.0.0.1"
+        )
         user = User(username="audit-user", display_name="Audit User")
         role = Role(code="audit-role", name="Audit Role")
         permission = Permission(code="audit.read", name="Audit Read", module="audit")
@@ -44,7 +46,8 @@ def test_entity_create_update_and_delete_are_audited_transactionally():
         assert all(row.ip_address == "127.0.0.1" for row in records)
         updated = next(row for row in records if row.action == "user.updated")
         assert updated.context_data["display_name"] == {
-            "before": "Audit User", "after": "Updated Name"
+            "before": "Audit User",
+            "after": "Updated Name",
         }
     engine.dispose()
 
@@ -64,11 +67,13 @@ def test_explicit_audit_supports_bulk_permission_and_security_events():
     engine = _engine()
     with Session(engine) as db:
         actor_id = uuid.uuid4()
-        configure_audit_session(db, actor_user_id=actor_id,
-                                correlation_id="corr-security")
+        configure_audit_session(db, actor_user_id=actor_id, correlation_id="corr-security")
         record_explicit_audit(
-            db, action="authorization.denied", entity_type="permission",
-            entity_id="users.delete", result="denied",
+            db,
+            action="authorization.denied",
+            entity_type="permission",
+            entity_id="users.delete",
+            result="denied",
             context_data={"path": "/api/v1/users/1", "method": "DELETE"},
         )
         db.commit()

@@ -23,7 +23,10 @@ class UserDataScope(TimestampMixin, Base):
     scope_value: Mapped[str] = mapped_column(String(160), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("scope_type IN ('global', 'company', 'department', 'owner')", name="ck_user_data_scopes_type"),
+        CheckConstraint(
+            "scope_type IN ('global', 'company', 'department', 'owner')",
+            name="ck_user_data_scopes_type",
+        ),
         UniqueConstraint("user_id", "scope_type", "scope_value", name="uq_user_data_scopes_grant"),
         Index("ix_user_data_scopes_user_type", "user_id", "scope_type"),
     )
