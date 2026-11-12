@@ -13,16 +13,6 @@ const permissions: Permission[] = [
   description: 'Demo permission',
 }));
 
-const profile: CurrentUserProfile = {
-  id: 'demo-admin',
-  username: 'demo',
-  display_name: 'مدیر نمایشی BiteGuard',
-  email: 'demo@example.test',
-  is_active: true,
-  roles: ['system_admin'],
-  permissions: permissions.map(p => p.code),
-};
-
 let users: User[] = [
   {
     id: 'demo-user-1',
@@ -47,6 +37,22 @@ let users: User[] = [
     email: 'niloofar@example.test',
     is_active: false,
     created_at: '2026-03-02T08:15:00Z',
+  },
+  {
+    id: 'demo-user-68',
+    username: 'testuser68',
+    display_name: 'کاربر آزمایشی ۶۸',
+    email: 'testuser68@example.test',
+    is_active: true,
+    created_at: '2026-11-12T08:00:00Z',
+  },
+  {
+    id: 'demo-user-auditor',
+    username: 'auditor',
+    display_name: 'ممیز نمایشی',
+    email: 'auditor@example.test',
+    is_active: true,
+    created_at: '2026-11-12T08:00:00Z',
   },
 ];
 
@@ -87,6 +93,8 @@ let userRoles: Record<string, string[]> = {
   'demo-user-1': ['demo-role-3'],
   'demo-user-2': ['demo-role-2'],
   'demo-user-3': [],
+  'demo-user-68': ['demo-role-3'],
+  'demo-user-auditor': ['demo-role-2'],
 };
 
 let scopes: Array<{
@@ -130,10 +138,115 @@ let audits: Audit[] = [
   },
 ];
 
-function record(action: string, entity: string, id: string | null) {
+const accounts = [
+  {
+    username: 'demo',
+    password: 'demo1234',
+    token: 'biteguard-demo-admin-session',
+    userId: 'demo-admin',
+    displayName: 'مدیر نمایشی BiteGuard',
+    email: 'demo@example.test',
+    roleIds: ['demo-role-1'],
+  },
+  {
+    username: 'operator',
+    password: 'operator1234',
+    token: 'biteguard-demo-operator-session',
+    userId: 'demo-user-68',
+    displayName: 'کاربر آزمایشی ۶۸',
+    email: 'testuser68@example.test',
+    roleIds: ['demo-role-3'],
+  },
+  {
+    username: 'testuser68',
+    password: 'operator1234',
+    token: 'biteguard-demo-operator-session',
+    userId: 'demo-user-68',
+    displayName: 'کاربر آزمایشی ۶۸',
+    email: 'testuser68@example.test',
+    roleIds: ['demo-role-3'],
+  },
+  {
+    username: 'auditor',
+    password: 'auditor1234',
+    token: 'biteguard-demo-auditor-session',
+    userId: 'demo-user-auditor',
+    displayName: 'ممیز نمایشی',
+    email: 'auditor@example.test',
+    roleIds: ['demo-role-2'],
+  },
+];
+
+let activeToken: string | null = null;
+
+function storedToken(): string | null {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('bg_access_token') ?? activeToken;
+    }
+  } catch {
+    // Use in-memory session when storage is unavailable.
+  }
+  return activeToken;
+}
+
+function accountForToken(token: string | null) {
+  return accounts.find(account => account.token === token) ?? null;
+}
+
+function currentAccount() {
+  return accountForToken(storedToken());
+}
+
+function profileFor(account: NonNullable<ReturnType<typeof currentAccount>>): CurrentUserProfile {
+  const assignedRoles = account.roleIds;
+  const permissionIds = new Set(
+    assignedRoles.flatMap(roleId => rolePermissions[roleId] ?? []),
+  );
+
+  return {
+    id: account.userId,
+    username: account.username === 'operator' ? 'testuser68' : account.username,
+    display_name: account.displayName,
+    email: account.email,
+    is_active: true,
+    roles: assignedRoles
+      .map(roleId => roles.find(role => role.id === roleId)?.code)
+      .filter((code): code is string => Boolean(code)),
+    permissions: permissions
+      .filter(permission => permissionIds.has(permission.id))
+      .map(permission => permission.code),
+  };
+}
+
+function requireAccount() {
+  const account = currentAccount();
+  if (!account) {
+    throw new Error('نشست معتبر نیست؛ لطفاً دوباره وارد شوید. (401)');
+  }
+  return account;
+}
+
+function requirePermission(permission: string) {
+  const account = requireAccount();
+  const profile = profileFor(account);
+
+  if (!profile.permissions.includes(permission)) {
+    throw new Error(`دسترسی لازم برای این عملیات را ندارید: ${permission} (403)`);
+  }
+
+  return account;
+}
+
+function record(
+  action: string,
+  entity: string,
+  id: string | null,
+  actorId: string | null = currentAccount()?.userId ?? null,
+) {
   audits.unshift({
-    id: `demo-audit-${Date.now()}`,
-    actor_user_id: profile.id,
+    id: `demo-audit-${Date.now()}-${audits.length}`,
+    actor_user_id: actorId,
     action,
     entity_type: entity,
     entity_id: id,
@@ -164,28 +277,42 @@ export async function demoApi<T>(
   const body = bodyOf(init);
 
   if (cleanPath === '/auth/login' && method === 'POST') {
-    if (body.username !== 'demo' || body.password !== 'demo1234') {
-      throw new Error('اطلاعات ورود نمایشی صحیح نیست.');
+    const account = accounts.find(
+      item => item.username === body.username && item.password === body.password,
+    );
+
+    if (!account) {
+      throw new Error('نام کاربری یا رمز عبور نمایشی صحیح نیست.');
     }
-    record('auth.login', 'authentication', profile.id);
+
+    activeToken = account.token;
+    record('auth.login', 'authentication', account.userId, account.userId);
+
     return {
-      access_token: 'biteguard-demo-session',
+      access_token: account.token,
       token_type: 'bearer',
     } as T;
   }
 
-  if (cleanPath === '/auth/me') return profile as T;
+  if (cleanPath === '/auth/me') {
+    const account = requireAccount();
+    return profileFor(account) as T;
+  }
 
   if (cleanPath === '/auth/logout' && method === 'POST') {
-    record('auth.logout', 'authentication', profile.id);
+    const account = requireAccount();
+    record('auth.logout', 'authentication', account.userId, account.userId);
+    activeToken = null;
     return undefined as T;
   }
 
-  if (cleanPath.startsWith('/users') && parts.length === 1 && method === 'GET') {
+  if (cleanPath === '/users' && method === 'GET') {
+    requirePermission('users.read');
     return { items: users, total: users.length } as T;
   }
 
   if (cleanPath === '/users' && method === 'POST') {
+    const account = requirePermission('users.create');
     const user: User = {
       id: `demo-user-${Date.now()}`,
       username: String(body.username ?? ''),
@@ -195,7 +322,7 @@ export async function demoApi<T>(
       created_at: new Date().toISOString(),
     };
     users = [...users, user];
-    record('user.created', 'user', user.id);
+    record('user.created', 'user', user.id, account.userId);
     return user as T;
   }
 
@@ -204,43 +331,60 @@ export async function demoApi<T>(
     if (!user) throw new Error('کاربر نمایشی پیدا نشد.');
 
     if (parts.length === 2 && method === 'PATCH') {
+      const account = requirePermission('users.update');
       Object.assign(user, {
         display_name: body.display_name ?? user.display_name,
         email: body.email ?? user.email,
       });
-      record('user.updated', 'user', user.id);
+      record('user.updated', 'user', user.id, account.userId);
       return user as T;
     }
 
-    if (parts[2] === 'activate' || parts[2] === 'deactivate') {
-      user.is_active = parts[2] === 'activate';
-      record(`user.${parts[2]}`, 'user', user.id);
+    if (parts[2] === 'activate' && method === 'POST') {
+      const account = requirePermission('users.activate');
+      user.is_active = true;
+      record('user.activate', 'user', user.id, account.userId);
+      return user as T;
+    }
+
+    if (parts[2] === 'deactivate' && method === 'POST') {
+      const account = requirePermission('users.deactivate');
+      user.is_active = false;
+      record('user.deactivate', 'user', user.id, account.userId);
       return user as T;
     }
 
     if (parts[2] === 'roles' && parts.length === 3 && method === 'GET') {
+      requirePermission('users.roles.assign');
       return roles.filter(r => (userRoles[user.id] ?? []).includes(r.id)) as T;
     }
 
     if (parts[2] === 'roles' && method === 'POST') {
+      const account = requirePermission('users.roles.assign');
       const roleId = String(body.role_id ?? '');
+      if (!roles.some(role => role.id === roleId)) {
+        throw new Error('نقش انتخاب‌شده پیدا نشد.');
+      }
       userRoles[user.id] ??= [];
       if (!userRoles[user.id].includes(roleId)) userRoles[user.id].push(roleId);
-      record('user.role.assigned', 'user', user.id);
+      record('user.role.assigned', 'user', user.id, account.userId);
       return undefined as T;
     }
 
     if (parts[2] === 'roles' && parts[3] && method === 'DELETE') {
+      const account = requirePermission('users.roles.assign');
       userRoles[user.id] = (userRoles[user.id] ?? []).filter(id => id !== parts[3]);
-      record('user.role.revoked', 'user', user.id);
+      record('user.role.revoked', 'user', user.id, account.userId);
       return undefined as T;
     }
 
     if (parts[2] === 'data-scopes' && parts.length === 3 && method === 'GET') {
+      requirePermission('users.scopes.manage');
       return scopes.filter(s => s.user_id === user.id) as T;
     }
 
     if (parts[2] === 'data-scopes' && method === 'POST') {
+      const account = requirePermission('users.scopes.manage');
       const item = {
         id: `demo-scope-${Date.now()}`,
         user_id: user.id,
@@ -248,26 +392,29 @@ export async function demoApi<T>(
         scope_value: String(body.scope_value ?? ''),
       };
       scopes.push(item);
-      record('data_scope.granted', 'data_scope', item.id);
+      record('data_scope.granted', 'data_scope', item.id, account.userId);
       return item as T;
     }
 
     if (parts[2] === 'data-scopes' && parts[3] && parts[4] && method === 'DELETE') {
+      const account = requirePermission('users.scopes.manage');
       const scopeType = decodeURIComponent(parts[3]);
       const scopeValue = decodeURIComponent(parts[4]);
       scopes = scopes.filter(s =>
         !(s.user_id === user.id && s.scope_type === scopeType && s.scope_value === scopeValue)
       );
-      record('data_scope.revoked', 'data_scope', user.id);
+      record('data_scope.revoked', 'data_scope', user.id, account.userId);
       return undefined as T;
     }
   }
 
-  if (cleanPath.startsWith('/roles') && parts.length === 1 && method === 'GET') {
+  if (cleanPath === '/roles' && method === 'GET') {
+    requirePermission('roles.read');
     return { items: roles, total: roles.length } as T;
   }
 
   if (cleanPath === '/roles' && method === 'POST') {
+    const account = requirePermission('roles.create');
     const role: Role = {
       id: `demo-role-${Date.now()}`,
       code: String(body.code ?? ''),
@@ -278,36 +425,41 @@ export async function demoApi<T>(
     };
     roles.push(role);
     rolePermissions[role.id] = [];
-    record('role.created', 'role', role.id);
+    record('role.created', 'role', role.id, account.userId);
     return role as T;
   }
 
   if (parts[0] === 'roles' && parts[1]) {
     if (parts[2] === 'permissions' && parts.length === 3 && method === 'GET') {
+      requirePermission('roles.read');
       const ids = rolePermissions[parts[1]] ?? [];
       return permissions.filter(p => ids.includes(p.id)) as T;
     }
 
     if (parts[2] === 'permissions' && method === 'POST') {
+      const account = requirePermission('roles.permissions.assign');
       const id = String(body.permission_id ?? '');
       rolePermissions[parts[1]] ??= [];
       if (!rolePermissions[parts[1]].includes(id)) rolePermissions[parts[1]].push(id);
-      record('role.permission.assigned', 'role', parts[1]);
+      record('role.permission.assigned', 'role', parts[1], account.userId);
       return undefined as T;
     }
 
     if (parts[2] === 'permissions' && parts[3] && method === 'DELETE') {
+      const account = requirePermission('roles.permissions.assign');
       rolePermissions[parts[1]] = (rolePermissions[parts[1]] ?? []).filter(id => id !== parts[3]);
-      record('role.permission.revoked', 'role', parts[1]);
+      record('role.permission.revoked', 'role', parts[1], account.userId);
       return undefined as T;
     }
   }
 
-  if (cleanPath.startsWith('/permissions')) {
+  if (cleanPath === '/permissions' && method === 'GET') {
+    requirePermission('roles.read');
     return { items: permissions, total: permissions.length } as T;
   }
 
-  if (cleanPath.startsWith('/audit-logs')) {
+  if (cleanPath === '/audit-logs' && method === 'GET') {
+    requirePermission('audit.read');
     return { items: audits, total: audits.length } as T;
   }
 
