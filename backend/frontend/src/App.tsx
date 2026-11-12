@@ -969,7 +969,7 @@ function NoAccess() {
   return (
     <section className="panel">
       <h1>403</h1>
-      <p>??? ???? ?????? ?? ??? ??? ?? ??????.</p>
+      <p>شما مجوز دسترسی به این بخش را ندارید.</p>
     </section>
   );
 }
@@ -1095,16 +1095,16 @@ export default function App() {
 
         <nav>
           {hasPermission(profile, 'users.read') && (
-            <NavLink to="/users">???????</NavLink>
+            <NavLink to="/users">کاربران</NavLink>
           )}
           {hasPermission(profile, 'roles.read') && (
-            <NavLink to="/roles">?????? ? ??????</NavLink>
+            <NavLink to="/roles">نقش‌ها و مجوزها</NavLink>
           )}
           {hasPermission(profile, 'users.scopes.manage') && (
             <NavLink to="/scopes">Data Scope</NavLink>
           )}
           {hasPermission(profile, 'audit.read') && (
-            <NavLink to="/audits">????? Audit</NavLink>
+            <NavLink to="/audits">گزارش‌های ممیزی</NavLink>
           )}
         </nav>
 
