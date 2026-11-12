@@ -108,6 +108,15 @@ function Login({ onLogin }: { onLogin: (profile: CurrentUserProfile) => void }) 
 
         <h1>ورود به بایت گارد</h1>
 
+        {import.meta.env.MODE === 'demo' && (
+          <div className="demo-notice" role="note">
+            <strong>{'\u0646\u0633\u062e\u0647 \u0646\u0645\u0627\u06cc\u0634\u06cc'}</strong>
+            <p>{'\u0627\u06cc\u0646 \u0646\u0633\u062e\u0647 \u0628\u0647 Backend \u0648\u0642\u0639\u06cc \u0645\u062a\u0635\u0644 \u0646\u06cc\u0633\u062a\u061b \u062a\u0645\u0627\u0645 \u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0646\u0645\u0627\u06cc\u0634\u06cc \u0647\u0633\u062a\u0646\u062f.'}</p>
+            <p>{'\u0646\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631\u06cc'}: <code>demo</code></p>
+            <p>{'\u06af\u0630\u0631\u0648\u0627\u0698\u0647'}: <code>demo1234</code></p>
+          </div>
+        )}
+
         <label>
           نام کاربری
           <input
@@ -1111,7 +1120,11 @@ export default function App() {
       <main className="content">
         <header>
           <span>مدیریت هویت و دسترسی</span>
-          <span className="status">اتصال API</span>
+          {import.meta.env.MODE === 'demo' ? (
+            <span className="demo-status">{'\u0646\u0633\u062e\u0647 \u0646\u0645\u0627\u06cc\u0634\u06cc \u2014 \u0628\u062f\u0648\u0646 Backend'}</span>
+          ) : (
+            <span className="status">اتصال API</span>
+          )}
         </header>
 
         <Routes>
