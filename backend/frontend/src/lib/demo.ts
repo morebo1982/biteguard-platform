@@ -86,7 +86,7 @@ let roles: Role[] = [
 let rolePermissions: Record<string, string[]> = {
   'demo-role-1': permissions.map(p => p.id),
   'demo-role-2': [permissions[0].id, permissions[14].id],
-  'demo-role-3': [permissions[0].id, permissions[1].id],
+  'demo-role-3': [],
 };
 
 let userRoles: Record<string, string[]> = {
